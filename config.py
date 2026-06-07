@@ -19,6 +19,6 @@ TRC20_ADDRESS = "TN3J2Ut6NNkqpWuy7m61UfG1oQG2onXLnm"
 
 LOG_CHANNEL = -1001873723467
 DEFAULT_FSUB_ID = -1001973643750
-DEFAULT_FSUB_LINK = "https://t.me/Uotp_store"
+DEFAULT_FSUB_LINK = "https://t.me/uotp_store"
 
 DIVIDER = "━━━━━━━━━━━━━━━━━━━━━━"
