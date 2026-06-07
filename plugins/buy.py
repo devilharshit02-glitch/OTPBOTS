@@ -315,12 +315,12 @@ async def send_public_log(client, user, country, price, item_data, flag):
             f"<b>✚ <u>OTP</u>:</b>  <spoiler>******</spoiler> 💬\n"
             f"<b>✚ <u>Server</u>:</b>  <b>(1)</b> 🥂\n"
             f"<b>✚ <u>Password</u>:</b>  <spoiler>{STATIC_2FA_PASSWORD}</spoiler> 🔐\n\n"
-            f"<b>✦</b> <i>@ToxicStoreBot</i>  <b>||</b>  <i>@ToxicTgStore</i> <b>✦</b>"
+            f"<b>✦</b> <i>@Otp_Git_Bot</i>  <b>||</b>  <i>@mecobots</i> <b>✦</b>"
         )
         
         # Hardcoded URL for optimization
         buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🛒 • Buy Now • 🛒", url="https://t.me/ToxicTGStore")]
+            [InlineKeyboardButton("🛒 • Buy Now • 🛒", url="https://t.me/mecobots")]
         ])
         
         await client.send_message(
