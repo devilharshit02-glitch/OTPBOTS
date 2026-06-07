@@ -1,0 +1,25 @@
+{
+  "name": "Otp Bot",
+  "description": "Simple Telegram Bot Deployment",
+  "logo": "https://telegra.ph/file/5d0c3c0b0f5b5f5d5c5c5.jpg",
+  "keywords": ["telegram", "bot", "pyrogram"],
+  "env": {
+    "API_ID": {
+      "description": "Get from my.telegram.org",
+      "value": "39934421"
+    },
+    "API_HASH": {
+      "description": "Get from my.telegram.org",
+      "value": "407aaa4db92ab5d0b32027d6482a5fff"
+    },
+    "BOT_TOKEN": {
+      "description": "Get from BotFather",
+      "value": "8593178885:"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ]
+}
