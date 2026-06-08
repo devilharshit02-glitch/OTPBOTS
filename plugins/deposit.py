@@ -3,7 +3,7 @@ import requests
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # Configuration
-BOT_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN'
+BOT_TOKEN = '8834012010:AAEoY4ZEDseOIfe8m50SFTgRpyMR-CUtCp4'
 bot = telebot.TeleBot(BOT_TOKEN)
 
 # FamPay API Details
