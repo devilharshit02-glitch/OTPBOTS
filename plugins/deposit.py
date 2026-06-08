@@ -145,7 +145,7 @@ async def pay_upi_show_qr(c, cb):
     deposit_session[user_id] = {"mode": "waiting_utr", "menu_id": cb.message.id}
     
     # 2. Use Static QR Link
-    qr_image_url = "https://graph.org/file/437f160f081ca11662d46-919d672182c6f3c2bb.jpg"
+    qr_image_url = "https://graph.org/file/2d27816e1319eef974b47-3cf8c54a9acd753d62.jpg"
     
     text = (
         "<b>💳 UPI PAYMENT (Auto-Verify)</b>\n"
