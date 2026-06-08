@@ -1,6 +1,6 @@
-import hydrogram
+import telebot
 import requests
-from hydrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # Configuration
 BOT_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN'
