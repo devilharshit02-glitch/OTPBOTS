@@ -13,7 +13,7 @@ ADMIN_GROUP_ID = -1003661047010
 
 USDT_RATE = 90.0  
 
-PAYMENT_UPI_ID = "abhishek.kumar.283@superyes"
+PAYMENT_UPI_ID = "abhishekkumar2947@bpunity"
 BINANCE_ID = "1193032529"
 TRC20_ADDRESS = "TN3J2Ut6NNkqpWuy7m61UfG1oQG2onXLnm"
 
