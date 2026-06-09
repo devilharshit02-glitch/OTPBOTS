@@ -13,7 +13,7 @@ from utils import format_price
 # ==================================================================
 # 🔑 FAMPAY API CREDENTIALS
 # ==================================================================
-FAMPAY_EMAIL = "botheruko41"  # API URL appends @gmail automatically
+FAMPAY_EMAIL = "bittulkr628"  # API URL appends @gmail automatically
 FAMPAY_APP_PASS = "wbko gbtd rrmb rfqo".replace(" ", "")  # Spaces removed for API
 FAMPAY_API_KEY = "FA0F94453B5D19AD0FE85A937266546630"
 
