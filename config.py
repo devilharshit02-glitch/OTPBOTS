@@ -3,7 +3,7 @@ from os import getenv
 
 API_ID = int(getenv("API_ID", "24790031")) 
 API_HASH = getenv("API_HASH", "0c7a496a6e33e862be48af651b935cce")
-BOT_TOKEN = getenv("BOT_TOKEN", "8834012010:AAEoY4ZEDseOIfe8m50SFTgRpyMR-CUtCp4")
+BOT_TOKEN = getenv("BOT_TOKEN", "8834012010:AAEScH9Yhj_wlMFgeQqiUNv3P0J2vRnsKAk")
 
 MONGO_URI = getenv("MONGO_URI", "mongodb+srv://Mecobot:Mecobots@cluster0.o64pd7z.mongodb.net/?retryWrites=true&w=majority")
 
@@ -13,7 +13,7 @@ ADMIN_GROUP_ID = -1003661047010
 
 USDT_RATE = 90.0  
 
-PAYMENT_UPI_ID = "BHARATPE09903888278@yesbankltd"
+PAYMENT_UPI_ID = "abhishek.kr.tg@fam"
 BINANCE_ID = "1193032529"
 TRC20_ADDRESS = "TN3J2Ut6NNkqpWuy7m61UfG1oQG2onXLnm"
 
