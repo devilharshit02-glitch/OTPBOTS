@@ -132,7 +132,7 @@ async def pay_upi_show_qr(c, cb):
     
     # You can also use the Fampay API QR generator here if you prefer:
     # qr_image_url = f"https://subdict.qzz.io/genqr?upi={PAYMENT_UPI_ID}&amount=0&name=Merchant"
-    qr_image_url = "https://graph.org/file/2d27816e1319eef974b47-3cf8c54a9acd753d62.jpg"
+    qr_image_url = "https://graph.org/file/0a046a3f52881ee8ae9ff-aa89be2e742ce72c7b.jpg"
     
     text = (
         "<b>💳 UPI / FAMPAY PAYMENT (Auto-Verify)</b>\n"
