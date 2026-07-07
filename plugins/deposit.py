@@ -1,21 +1,11 @@
 import asyncio
-import aiohttp
 import qrcode
 import io
 from hydrogram import Client, filters, enums
 from hydrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ForceReply, CallbackQuery, Message
-
-# Assuming these are imported correctly from your files
 from config import ADMINS, PAYMENT_UPI_ID, BINANCE_ID, TRC20_ADDRESS, ADMIN_GROUP_ID
 from database import get_user, update_balance, create_deposit, get_deposit
 from utils import format_price
-
-# ==================================================================
-# 🔑 FAMPAY API CREDENTIALS
-# ==================================================================
-FAMPAY_EMAIL = "bittulkr628"  # API URL appends @gmail automatically
-FAMPAY_APP_PASS = "wbko gbtd rrmb rfqo".replace(" ", "")  # Spaces removed for API
-FAMPAY_API_KEY = "FA0F94453B5D19AD0FE85A937266546630"
 
 # ==================================================================
 # 🧠 DEPOSIT STATE MANAGEMENT (RAM)
@@ -30,9 +20,11 @@ def clear_deposit_session(user_id):
 # ==================================================================
 # 🛠️ HELPER: QR CODE GENERATOR (In-Memory)
 # ==================================================================
-def generate_upi_qr(upi_id):
-    """Generates a UPI QR code image in memory."""
+def generate_upi_qr(upi_id, amount=None):
+    """Generates a UPI QR code image in memory. Includes amount if provided."""
     upi_url = f"upi://pay?pa={upi_id}&pn=Merchant&cu=INR"
+    if amount:
+        upi_url += f"&am={amount}"
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -44,6 +36,7 @@ def generate_upi_qr(upi_id):
 
     img = qr.make_image(fill_color="black", back_color="white")
     
+    # Save to bytes buffer
     bio = io.BytesIO()
     img.save(bio)
     bio.seek(0)
@@ -54,8 +47,13 @@ def generate_upi_qr(upi_id):
 # ==================================================================
 
 async def safe_deposit_menu(client, message_or_callback):
+    """
+    Bulletproof Entry Point.
+    Strategy: Define variables FIRST, then try logic. If logic fails, use defaults.
+    """
+
     buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🇮🇳 UPI / Fampay (Auto)", callback_data="pay_upi_start")],
+        [InlineKeyboardButton("🇮🇳 UPI (Auto - Fast)", callback_data="pay_upi_start")],
         [InlineKeyboardButton("🪙 Crypto (Manual)", callback_data="pay_crypto")],
         [InlineKeyboardButton("🔙 Back to Home", callback_data="home")]
     ])
@@ -63,14 +61,17 @@ async def safe_deposit_menu(client, message_or_callback):
     user_id = message_or_callback.from_user.id
     
     try:
+        # 1. Clear Session
         clear_deposit_session(user_id)
 
+        # 2. Determine Context (Message or Callback)
         if isinstance(message_or_callback, CallbackQuery):
             msg = message_or_callback.message
             is_callback = True
         else:
             msg = message_or_callback
             is_callback = False
+
 
         try:
             user = await get_user(user_id)
@@ -80,6 +81,7 @@ async def safe_deposit_menu(client, message_or_callback):
                 user = await get_user(user_id)
 
             raw_balance = user.get("balance", 0)
+            # Handle String/Float/Int safely
             if isinstance(raw_balance, str):
                 try: balance_val = float(raw_balance)
                 except: balance_val = 0.0
@@ -87,8 +89,9 @@ async def safe_deposit_menu(client, message_or_callback):
                 balance_val = float(raw_balance)
         except Exception as e:
             print(f"DB Error in Deposit: {e}")
-            balance_val = 0.0 
+            balance_val = 0.0 # Fallback
 
+        # 4. Final Text Generation
         text = (
             f"<b>🏦 ADD FUNDS</b>\n"
             "━━━━━━━━━━━━━━━━━━━━\n"
@@ -96,23 +99,31 @@ async def safe_deposit_menu(client, message_or_callback):
             "👇 <b>Select Payment Method:</b>"
         )
 
+        # 5. EXECUTION
         if is_callback:
+            # Attempt 1:
             try:
                 await msg.edit_text(text, parse_mode=enums.ParseMode.HTML, reply_markup=buttons)
             except Exception:
+              
                 try: await msg.delete()
                 except: pass 
+                
+                # Send New Message
                 await client.send_message(user_id, text, parse_mode=enums.ParseMode.HTML, reply_markup=buttons)
         else:
+            # Direct Command (/deposit)
             await msg.reply_text(text, parse_mode=enums.ParseMode.HTML, reply_markup=buttons)
 
     except Exception as e:
+
         print(f"Critical Deposit Error: {e}")
         try:
             await client.send_message(user_id, text, parse_mode=enums.ParseMode.HTML, reply_markup=buttons)
         except: pass
 
 
+# ✅ ENTRY POINTS
 @Client.on_message(filters.command("deposit"))
 async def deposit_command(c, msg):
     await safe_deposit_menu(c, msg)
@@ -121,201 +132,101 @@ async def deposit_command(c, msg):
 async def deposit_callback(c, cb):
     await safe_deposit_menu(c, cb)
 
+
+
 # ==================================================================
-# 🇮🇳 UPI / FAMPAY AUTOMATIC FLOW
+# 🇮🇳 UPI FLOW: ASK AMOUNT -> SHOW QR -> WAIT SCREENSHOT
 # ==================================================================
 
 @Client.on_callback_query(filters.regex("pay_upi_start"))
-async def pay_upi_show_qr(c, cb):
+async def pay_upi_ask_amount(c, cb):
+    """Step 1: Ask user how much they want to deposit."""
     user_id = cb.from_user.id
-    deposit_session[user_id] = {"mode": "waiting_utr", "menu_id": cb.message.id}
-    
-    # You can also use the Fampay API QR generator here if you prefer:
-    # qr_image_url = f"https://subdict.qzz.io/genqr?upi={PAYMENT_UPI_ID}&amount=0&name=Merchant"
-    qr_image_url = "https://graph.org/file/0a046a3f52881ee8ae9ff-aa89be2e742ce72c7b.jpg"
-    
+
+    # 1. Set State - waiting for amount
+    deposit_session[user_id] = {"mode": "waiting_amount", "menu_id": cb.message.id}
+
     text = (
-        "<b>💳 UPI / FAMPAY PAYMENT (Auto-Verify)</b>\n"
+        "<b>💳 UPI PAYMENT</b>\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
-        f"🆔 <b>UPI ID:</b> <code>{PAYMENT_UPI_ID}</code>\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        "<b>STEPS TO PAY:</b>\n"
-        "1️⃣ Scan QR or Copy UPI ID.\n"
-        "2️⃣ Pay any amount you want.\n"
-        "3️⃣ <b>Send the 12-Digit UTR and Amount separated by space.</b>\n"
-        "<i>Example:</i> <code>123456789012 50</code>\n\n"
-        "<i>Bot is listening for UTR and Amount...</i>"
+        "👇 <b>Kitna amount deposit karna chahte hain?</b>\n"
+        "<i>Amount number me type karke bhejein (e.g. 500)</i>"
     )
-    
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton("🔙 Cancel", callback_data="deposit_home")]
     ])
-    
-    try: await cb.message.delete()
+
+    try:
+        await cb.message.edit_text(text, parse_mode=enums.ParseMode.HTML, reply_markup=buttons)
+    except Exception:
+        try: await cb.message.delete()
+        except: pass
+        sent = await c.send_message(user_id, text, parse_mode=enums.ParseMode.HTML, reply_markup=buttons)
+        deposit_session[user_id]["menu_id"] = sent.id
+
+
+@Client.on_message(filters.text & filters.private & ~filters.command(["start", "deposit", "admin"]), group=1)
+async def check_amount_input(c, msg):
+    """Step 2: Read the amount, then show the QR code for that amount."""
+    user_id = msg.from_user.id
+
+    # 1. Check State
+    if user_id not in deposit_session: return
+    state = deposit_session[user_id]
+    if state.get("mode") != "waiting_amount": return
+
+    # 2. Cleanup User Input
+    try: await msg.delete()
     except: pass
-    
+
+    # 3. Validate Amount
+    amount_text = msg.text.strip()
+    if not amount_text.isdigit() or int(amount_text) <= 0:
+        temp = await c.send_message(user_id, "❌ <b>Galat Amount!</b>\nSahi number bhejein (e.g. 500).")
+        await asyncio.sleep(3); await temp.delete()
+        return
+
+    amount = int(amount_text)
+
+    # 4. Move to waiting_proof state, store amount + type
+    deposit_session[user_id] = {"mode": "waiting_proof", "type": "upi", "amount": amount}
+
+    # 5. Generate Dynamic QR with amount
+    qr_image = generate_upi_qr(PAYMENT_UPI_ID, amount)
+
+    text = (
+        "<b>💳 UPI PAYMENT</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        f"💰 <b>Amount:</b> ₹{amount}\n"
+        f"🆔 <b>UPI ID:</b> <code>{PAYMENT_UPI_ID}</code>\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "<b>STEPS TO PAY:</b>\n"
+        "1️⃣ Scan QR ya UPI ID copy karein.\n"
+        f"2️⃣ Exactly ₹{amount} pay karein.\n"
+        "3️⃣ <b>Payment ka screenshot yahan bhejein.</b>\n\n"
+        "<i>Bot aapke screenshot ka wait kar raha hai...</i>"
+    )
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔙 Cancel", callback_data="deposit_home")]
+    ])
+
     sent_msg = await c.send_photo(
-        user_id, 
-        photo=qr_image_url, 
-        caption=text, 
+        user_id,
+        photo=qr_image,
+        caption=text,
         parse_mode=enums.ParseMode.HTML,
         reply_markup=buttons
     )
     deposit_session[user_id]["menu_id"] = sent_msg.id
 
-# ==================================================================
-# 🕵️‍♂️ UTR LISTENER & FAMPAY API VERIFICATION
-# ==================================================================
-
-@Client.on_message(filters.text & filters.private & ~filters.command(["start", "deposit", "admin"]), group=1)
-async def check_utr_input(c, msg):
-    user_id = msg.from_user.id
-    
-    if user_id not in deposit_session: return
-    state = deposit_session[user_id]
-    if state.get("mode") != "waiting_utr": return
-
-    try: await msg.delete()
-    except: pass
-
-    # Parse UTR and Amount from User Input
-    input_parts = msg.text.strip().split()
-    if len(input_parts) < 2:
-        temp = await c.send_message(user_id, "❌ <b>Invalid Format!</b>\nPlease send both your UTR and the Amount.\nExample: `123456789012 50`")
-        await asyncio.sleep(4); await temp.delete()
-        return
-
-    utr = input_parts[0]
-    try:
-        amount_input = float(input_parts[1])
-    except ValueError:
-        temp = await c.send_message(user_id, "❌ <b>Invalid Amount!</b>\nPlease ensure the amount is a valid number.")
-        await asyncio.sleep(4); await temp.delete()
-        return
-
-    if not utr.isdigit() or len(utr) != 12:
-        temp = await c.send_message(user_id, "❌ <b>Invalid UTR!</b>\nPlease send a valid 12-digit UTR number.")
-        await asyncio.sleep(4); await temp.delete()
-        return
-
-    if await get_deposit(utr):
-        temp = await c.send_message(user_id, "⚠️ <b>UTR Already Used!</b>\nContact admin if needed.")
-        await asyncio.sleep(4); await temp.delete()
-        clear_deposit_session(user_id)
-        return
-
-    status_msg = await c.send_message(user_id, "🔄 <b>Verifying Payment via Fampay...</b>\n<i>Connecting to banking server...</i>")
-    
-    try:
-        # Fampay GET Request Integration
-        api_url = f"https://subdict.qzz.io/check?mail={FAMPAY_EMAIL}@gmail&apppass={FAMPAY_APP_PASS}&utr={utr}&amount={amount_input}&key={FAMPAY_API_KEY}"
-        
-        async with aiohttp.ClientSession() as session:
-            async with session.get(api_url) as resp:
-                data = await resp.json()
-        
-        # Checking Fampay API Response
-        # Adjust logic if the API returns a different success key format
-        status_response = str(data.get("status", "")).lower()
-        is_verified = data.get("verified") is True or status_response in ["success", "true", "1"]
-
-        if is_verified:
-            amount = float(data.get("amount", data.get("amount_credited", amount_input)))
-            payer_name = data.get("payer_name", "Fampay User")
-            
-            await update_balance(user_id, amount)
-
-            from database import check_referral_milestone
-            referrer_id = await check_referral_milestone(user_id, amount)
-            if referrer_id:
-                try:
-                    await c.send_message(referrer_id, f"🎉 <b>Referral Bonus!</b>\nYour invitee deposited funds.\n💰 <b>You got:</b> ₹20")
-                except: pass
-            
-            await create_deposit(user_id, amount, utr, "fampay_auto", "success")
-
-            success_text = (
-                "<b>✅ PAYMENT SUCCESSFUL!</b>\n"
-                "━━━━━━━━━━━━━━━━━━━━\n"
-                f"💰 <b>Credited:</b> ₹{amount}\n"
-                f"👤 <b>Payer:</b> {payer_name}\n"
-                f"🆔 <b>UTR:</b> <code>{utr}</code>\n"
-                "━━━━━━━━━━━━━━━━━━━━\n"
-                "<i>Funds have been added to your wallet.</i>"
-            )
-            await status_msg.edit_text(
-                success_text, 
-                parse_mode=enums.ParseMode.HTML,
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🛍 Buy Now", callback_data="home")]])
-            )
-            
-            try:
-                await c.send_message(
-                    ADMIN_GROUP_ID,
-                    f"🤖 <b>Auto-Deposit Alert (Fampay)</b>\n"
-                    f"👤 User: {msg.from_user.mention}\n"
-                    f"💰 Amount: ₹{amount}\n"
-                    f"🆔 UTR: {utr}\n"
-                    f"🏦 Name: {payer_name}"
-                )
-            except: pass
-            
-            clear_deposit_session(user_id)
-            
-        else:
-            message = data.get("message", "Payment not found or amount mismatched.")
-            fail_text = (
-                f"❌ <b>Verification Failed!</b>\n"
-                f"Reason: {message}\n\n"
-                "👇 <b>If you paid, request manual review:</b>"
-            )
-            buttons = InlineKeyboardMarkup([
-                [InlineKeyboardButton("👨‍💻 Request Manual Check", callback_data=f"manual_review_{utr}")],
-                [InlineKeyboardButton("🔄 Try Again", callback_data="pay_upi_start")]
-            ])
-            await status_msg.edit_text(fail_text, reply_markup=buttons, parse_mode=enums.ParseMode.HTML)
-            
-    except Exception as e:
-        print(f"Fampay API Error: {e}")
-        await status_msg.edit_text("❌ <b>Server Error!</b>\nPlease try again later or contact admin.")
-        clear_deposit_session(user_id)
 
 # ==================================================================
-# 👨‍💻 MANUAL REVIEW REQUEST
-# ==================================================================
-
-@Client.on_callback_query(filters.regex(r"manual_review_(\d+)"))
-async def manual_review_request(c, cb):
-    utr = cb.data.split("_")[2]
-    user_id = cb.from_user.id
-    
-    text = (
-        "<b>⚠️ MANUAL REVIEW REQUEST</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        f"👤 <b>User:</b> {cb.from_user.mention} (`{user_id}`)\n"
-        f"🆔 <b>UTR:</b> <code>{utr}</code>\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        "👇 <b>Admin Action:</b>"
-    )
-    
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Approve", callback_data=f"admin_approve_{user_id}_{utr}")],
-        [InlineKeyboardButton("❌ Reject", callback_data=f"admin_reject_{user_id}")]
-    ])
-    
-    try:
-        await c.send_message(ADMIN_GROUP_ID, text, reply_markup=buttons, parse_mode=enums.ParseMode.HTML)
-        await cb.message.edit_text("✅ <b>Request Sent!</b>\nAdmin will check and update balance shortly.")
-        clear_deposit_session(user_id)
-    except Exception as e:
-        await cb.answer("Error sending request.", show_alert=True)
-
-# ==================================================================
-# 🪙 CRYPTO MANUAL FLOW (UNCHANGED)
+# 🪙 CRYPTO MANUAL FLOW
 # ==================================================================
 
 @Client.on_callback_query(filters.regex("pay_crypto"))
 async def pay_crypto(c, cb):
+    # 1. Safety Defaults
     text = "Loading Crypto Details..."
     buttons = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data="deposit_home")]])
     
@@ -339,14 +250,17 @@ async def pay_crypto(c, cb):
             [InlineKeyboardButton("🔙 Back", callback_data="deposit_home")]
         ])
         
+        # 2. Smart Send 
         try:
             await cb.message.edit_text(text, parse_mode=enums.ParseMode.HTML, reply_markup=buttons)
         except:
+            # Edit failed 
             await cb.message.delete()
             await c.send_message(cb.from_user.id, text, parse_mode=enums.ParseMode.HTML, reply_markup=buttons)
 
     except Exception as e:
         print(f"Crypto Menu Error: {e}")
+        # Fail safe
         try: await c.send_message(cb.from_user.id, text, reply_markup=buttons)
         except: pass
 
@@ -354,8 +268,9 @@ async def pay_crypto(c, cb):
 @Client.on_callback_query(filters.regex("submit_crypto_proof"))
 async def ask_proof(c, cb):
     user_id = cb.from_user.id
-    deposit_session[user_id] = {"mode": "waiting_proof", "menu_id": cb.message.id}
-    
+
+    deposit_session[user_id] = {"mode": "waiting_proof", "type": "crypto", "menu_id": cb.message.id}
+
     await cb.message.delete()
     sent = await c.send_message(
         user_id, 
@@ -368,71 +283,96 @@ async def ask_proof(c, cb):
     )
     deposit_session[user_id]["menu_id"] = sent.id
 
-@Client.on_message(filters.reply & (filters.photo | filters.document), group=2)
-async def handle_crypto_proof(c, msg):
+@Client.on_message((filters.photo | filters.document) & filters.private, group=2)
+async def handle_payment_proof(c, msg):
+    """Handles screenshot proof for BOTH UPI and Crypto deposits."""
     user_id = msg.from_user.id
-    
+
+    # 1. State Check
     if user_id not in deposit_session: return
     state = deposit_session[user_id]
     if state.get("mode") != "waiting_proof": return
 
+    pay_type = state.get("type", "crypto")
+    amount = state.get("amount")
+
+    # 2. Build Caption (with amount line if we know it - i.e. UPI flow)
+    amount_line = f"💰 <b>Amount:</b> ₹{amount}\n" if amount else ""
+    title = "🇮🇳 NEW UPI DEPOSIT" if pay_type == "upi" else "🪙 NEW CRYPTO DEPOSIT"
+
     caption = (
-        f"<b>🪙 NEW CRYPTO DEPOSIT</b>\n"
+        f"<b>{title}</b>\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
         f"👤 <b>User:</b> {msg.from_user.mention} (`{user_id}`)\n"
+        f"{amount_line}"
         f"📅 <b>Date:</b> {msg.date}\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
         "👇 <b>Verify & Approve:</b>"
     )
-    
+
+    # Ref tells admin flow what to prefill: amount if known (UPI), else "crypto" (manual entry)
+    ref = f"amt{amount}" if amount else "crypto"
+
     buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Add Funds", callback_data=f"admin_approve_{user_id}_crypto")],
+        [InlineKeyboardButton("✅ Add Funds", callback_data=f"admin_approve_{user_id}_{ref}")],
         [InlineKeyboardButton("❌ Reject", callback_data=f"admin_reject_{user_id}")]
     ])
-    
+
     try:
+        file_id = msg.photo.file_id if msg.photo else msg.document.file_id
         await c.send_photo(
             ADMIN_GROUP_ID, 
-            photo=msg.photo.file_id, 
+            photo=file_id, 
             caption=caption, 
             reply_markup=buttons,
             parse_mode=enums.ParseMode.HTML
         )
-        await msg.reply_text("✅ <b>Proof Submitted!</b>\nWait for admin approval.", parse_mode=enums.ParseMode.HTML)
+        await msg.reply_text("✅ <b>Proof Submitted!</b>\nAdmin approval ka wait karein.", parse_mode=enums.ParseMode.HTML)
         clear_deposit_session(user_id)
         
     except Exception as e:
         await msg.reply_text(f"❌ Error: {e}")
 
 # ==================================================================
-# 👮 ADMIN APPROVAL LOGIC (UNCHANGED)
+# 👮 ADMIN APPROVAL LOGIC 
 # ==================================================================
 
 @Client.on_callback_query(filters.regex(r"admin_approve_(\d+)_(.+)"))
 async def admin_approve_ask(c, cb):
     data = cb.data.split("_")
     user_id = data[2]
-    ref_id = data[3] 
-    
+    ref_id = data[3]  # 'crypto' or 'amt<number>' (user's claimed UPI amount)
+
+    # If ref_id looks like "amt500", extract the claimed amount to show as a hint
+    hint = ""
+    if ref_id.startswith("amt") and ref_id[3:].isdigit():
+        hint = f"💡 <i>User ne screenshot ke hisaab se ₹{ref_id[3:]} pay kiya hai (verify karke confirm karein)</i>\n\n"
+
+    #Amount
     await cb.message.reply_text(
         f"<b>💰 CREDIT AMOUNT (INR)</b>\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
         f"User ID: `{user_id}`\n"
         f"Ref: `{ref_id}`\n\n"
-        "👇 <i>Reply with amount (e.g. 500):</i>",
+        f"{hint}"
+        "👇 <i>Screenshot verify karke amount reply karein (e.g. 500):</i>",
         reply_markup=ForceReply(selective=True),
         parse_mode=enums.ParseMode.HTML
     )
 
 @Client.on_message(filters.reply & filters.regex(r"^\d+$") & filters.chat(ADMIN_GROUP_ID))
 async def admin_finalize_deposit(c, msg):
+    # Check context
     if msg.reply_to_message and "CREDIT AMOUNT" in msg.reply_to_message.text:
         try:
+
             target_user_id = int(msg.reply_to_message.text.split("User ID: `")[1].split("`")[0])
             amount = int(msg.text)
             
+            # Add Balance
             await update_balance(target_user_id, amount)
 
+            
             from database import check_referral_milestone
             referrer_id = await check_referral_milestone(target_user_id, amount)
             if referrer_id:
@@ -440,10 +380,14 @@ async def admin_finalize_deposit(c, msg):
                     await c.send_message(referrer_id, f"🎉 <b>Referral Bonus!</b>\nYour invitee deposited funds.\n💰 <b>You got:</b> ₹20")
                 except: pass
             
+            # Log
             await create_deposit(target_user_id, amount, "admin_manual", "manual", "success")
 
+            
+            # Notify Admin
             await msg.reply_text(f"✅ <b>Done!</b> Added ₹{amount} to `{target_user_id}`.")
             
+            # Notify User
             try:
                 await c.send_message(
                     target_user_id,
@@ -468,4 +412,3 @@ async def admin_reject(c, cb):
     except: pass
     
     await cb.message.edit_caption(cb.message.caption + "\n\n🚫 <b>REJECTED BY ADMIN</b>")
-    
