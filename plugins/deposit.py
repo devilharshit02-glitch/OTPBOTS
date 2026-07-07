@@ -53,8 +53,8 @@ async def safe_deposit_menu(client, message_or_callback):
     """
 
     buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🇮🇳 UPI (Auto - Fast)", callback_data="pay_upi_start")],
-        [InlineKeyboardButton("🪙 Crypto (Manual)", callback_data="pay_crypto")],
+        [InlineKeyboardButton("💸 UPI", callback_data="pay_upi_start")],
+        [InlineKeyboardButton("🪙 Crypto", callback_data="pay_crypto")],
         [InlineKeyboardButton("🔙 Back to Home", callback_data="home")]
     ])
     text = "<b>🏦 ADD FUNDS</b>\nLoading Wallet..."
