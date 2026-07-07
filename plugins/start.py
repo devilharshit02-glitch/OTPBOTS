@@ -249,7 +249,7 @@ async def handle_reply_text(c, msg):
 
     elif btn_text == "📞 Support":
         await msg.reply_text(
-            "📞 <b>Customer Support:</b> @Uotp_Support\n"
+            "📞 <b>Customer Support:</b> @AuroSupport\n"
             "━━━━━━━━━━━━━━━━━━━━\n"
             "<i>• Send Payment Proofs\n• Report Login Issues\n• Bulk Orders</i>",
             parse_mode=enums.ParseMode.HTML
