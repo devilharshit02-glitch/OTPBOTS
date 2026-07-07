@@ -7,7 +7,7 @@ BOT_TOKEN = getenv("BOT_TOKEN", "8834012010:AAEScH9Yhj_wlMFgeQqiUNv3P0J2vRnsKAk"
 
 MONGO_URI = getenv("MONGO_URI", "mongodb+srv://Mecobot:Mecobots@cluster0.o64pd7z.mongodb.net/?retryWrites=true&w=majority")
 
-ADMINS = [7632048577, 8867837503, 8867837503]
+ADMINS = [7632048577, 8867837503, 8935584927]
 STATIC_2FA_PASSWORD = "7979"
 ADMIN_GROUP_ID = -1003661047010
 
