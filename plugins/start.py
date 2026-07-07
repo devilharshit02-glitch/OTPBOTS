@@ -10,7 +10,7 @@ from config import DEFAULT_FSUB_ID, DEFAULT_FSUB_LINK, ADMINS
 # ==================================================================
 MAIN_BUTTONS = [
     "📱 Buy Accounts", "📂 Buy Sessions", 
-    "👛 Add Funds", "👤 My Profile", 
+    "💰 Deposit", "👤 My Profile", 
     "💰 Earn Money", "📞 Support", "📖 How to Use"
 ]
 
@@ -115,7 +115,7 @@ async def show_main_menu(client, message):
     reply_kb = ReplyKeyboardMarkup(
         [
             ["📱 Buy Accounts", "📂 Buy Sessions"],
-            ["👛 Add Funds", "👤 My Profile"],
+            ["💰 Deposit", "👤 My Profile"],
             ["💰 Earn Money", "📞 Support"],
             ["📖 How to Use"]
         ],
