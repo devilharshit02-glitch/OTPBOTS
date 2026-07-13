@@ -5,7 +5,7 @@ API_ID = int(getenv("API_ID", "35094834"))
 API_HASH = getenv("API_HASH", "961be8ee9d4bb1462d0ec6539fd40ea6")
 BOT_TOKEN = getenv("BOT_TOKEN", "8780726813:AAGF1A3nYn_ndn_85LstmhkcLk0ul4R5MFo")
 
-MONGO_URI = getenv("MONGO_URI", "mongodb+srv:@cluster0.o64pd7z.mongodb.net/?retryWrites=true&w=majority")
+MONGO_URI = getenv("MONGO_URI", "mongodb+srv://devilediting994:devilediting994@cluster0.tavhuwl.mongodb.net/?appName=Cluster0")
 
 ADMINS = [8714869727, 5385377266, 8700952672]
 STATIC_2FA_PASSWORD = "4444"
