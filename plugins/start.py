@@ -217,7 +217,7 @@ async def handle_reply_text(c, msg):
         except ImportError:
             await msg.reply_text("❌ Error: Buy plugin not found.")
 
-    elif btn_text == "👛 Add Funds":
+    elif btn_text == "💰 Deposit":
         try:
             from plugins.deposit import safe_deposit_menu 
             await safe_deposit_menu(c, msg)
